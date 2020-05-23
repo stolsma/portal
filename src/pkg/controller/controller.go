@@ -62,6 +62,7 @@ func Startup(templates map[string]*template.Template) {
 	workflowController.templates = map[string]*template.Template{
 		list:    templates[wfPrefix+view.list],
 		details: templates[wfPrefix+view.details],
+		create:  templates[wfPrefix+view.create],
 	}
 	workflowController.registerRoutes()
 

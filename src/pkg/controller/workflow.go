@@ -20,8 +20,15 @@ type workflow struct {
 }
 
 func (wf workflow) registerRoutes() {
+	http.HandleFunc("/workflow/create", wf.createWorkflow)
 	http.HandleFunc("/workflow/list", wf.listWorkflow)
 	http.HandleFunc("/workflow", wf.getWorkflow)
+}
+
+func (wf workflow) createWorkflow(w http.ResponseWriter, r *http.Request) {
+	data := types.Base{Title: "Workflows"}
+	err := wf.templates[create].Execute(w, data)
+	pkg.CheckError(err, errTemplateExecute)
 }
 
 func (wf workflow) getWorkflow(w http.ResponseWriter, r *http.Request) {

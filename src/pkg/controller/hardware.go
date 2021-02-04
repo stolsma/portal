@@ -26,6 +26,7 @@ func (h hardware) registerRoutes() {
 	http.HandleFunc("/hardware/list", h.listHardware)
 	http.HandleFunc("/hardware", h.getHardware)
 	http.HandleFunc("/hardware/update", h.updateHardware)
+	http.HandleFunc("/hardware/delete", h.deleteHardware)
 }
 
 func (h hardware) createHardware(w http.ResponseWriter, r *http.Request) {
@@ -107,4 +108,22 @@ func (h hardware) updateHardware(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusAccepted)
 	io.WriteString(w, "Hardware data updated successfully")
+}
+
+func (h hardware) deleteHardware(w http.ResponseWriter, r *http.Request) {
+	var req types.UpdateTemplate
+	decErr := json.NewDecoder(r.Body).Decode(&req)
+	if decErr != nil {
+		log.Errorf("bad request: %v", decErr)
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	err := client.DeleteHardware(context.Background(), req.ID)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, fmt.Sprintf("Failed to delete hardware data. Error: %v", err), http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	io.WriteString(w, "Hardware data deleted successfully")
 }

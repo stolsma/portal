@@ -86,6 +86,19 @@ func UpdateHardware(ctx context.Context, id string, data string) error {
 	return nil
 }
 
+// DeleteHardware deletes the given workflow hardware configuration
+func DeleteHardware(ctx context.Context, id string) error {
+	_, err := hardwareClient.Delete(ctx, &hardware.DeleteRequest{Id: id})
+	if err != nil {
+		return err
+	}
+
+	if err := cache.Delete(redis.CacheKeys.Hardwares, id); err != nil {
+		log.Error(err)
+	}
+	return nil
+}
+
 func listHardwaresFromServer(ctx context.Context) ([]types.Hardware, error) {
 	res, err := hardwareClient.All(ctx, &hardware.Empty{})
 	if err != nil {

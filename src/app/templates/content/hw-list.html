@@ -26,19 +26,16 @@
             <h6 class="m-0 font-weight-bold text-primary">Hardwares</h6>
           </div>
 
-          <script>
-            let selectedHardwareID = "";
-          </script>
           <div class="container" id="hardware-list">
             {{ with .Hardwares }} 
               {{ range . }}
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-4" id="card-{{.ID}}" >
                   <!-- Card Header - Accordion -->
-                  <a href="#hw-{{.ID}}" class="d-block card-header py-3" data-toggle="collapse" role="button" aria-expanded="false" aria-controls="hw-{{.ID}}">
+                  <a href="#hw-{{.ID}}" class="d-block card-header py-3 collapsed" data-toggle="collapse" role="button" aria-expanded="false" aria-controls="hw-{{.ID}}">
                     <h6 class="m-0 font-weight-bold" style="color: rgb(142, 40, 6);">{{ .ID }}</h6>
                   </a>
                   <!-- Card Content - Collapse -->
-                  <div class="collapse" id="hw-{{.ID}}" data-parent="#hardware-list">
+                  <div class="collapse" id="hw-{{.ID}}" data-id="{{.ID}}" data-parent="#hardware-list">
                     <div class="card-body">
                       {{ range $key, $value := .Fields }}
                         <div>
@@ -48,30 +45,6 @@
                     </div>
                   </div>
                 </div>
-
-                <script>
-                  $("#hw-{{.ID}}").on("show.bs.collapse", function () {
-                    selectedHardwareID = '{{.ID}}';
-                    $.ajax({
-                      'url' : '/hardware',
-                      'type' : 'POST',
-                      'data' : JSON.stringify({ id: selectedHardwareID}),
-                      'success' : function(data) {             
-                        document.getElementById("hardware-data").value = JSON.stringify(data, undefined, 4);
-                        $('#edit-hardware').css("display", "inline");         
-                      },
-                      'error' : function(jqXHR) {
-                        if (jqXHR.status == 400 || jqXHR.status == 404) {
-                          displayAlert(jqXHR.status, jqXHR.responseText, "danger");
-                          document.getElementById("hardware-data").value = "";                        
-                        } else {
-                          displayAlert(jqXHR.status, "Something went wrong! Please report this to https://github.com/gauravgahlot/tink-wizard/issues", "danger");
-                          document.getElementById("hardware-data").value = "";                        
-                        }
-                      }
-                    });
-                  })
-                </script>
               {{ end }}
             {{ end }}
           </div>
@@ -88,6 +61,7 @@
               <a id="edit-hardware" class="btn" style="display: none;" onclick="allowHardwareEdit()"><i class="fas fa-edit text-success"></i></a>
               <a id="update-hardware" class="btn" style="display: none;" onclick="updateHardware()"><i class="fas fa-file-upload text-warning"></i></a>
               <a id="cancel-edit" class="btn" style="display: none;" onclick="cancelEdit()"><i class="fas fa-times text-danger"></i></a>
+              <a id="delete-hardware" class="btn" style="display: none;" onclick="deleteHardware()">Delete</a>
             </div>
           </div>
 
@@ -120,21 +94,45 @@
   <script>
     updateNavbar("hw-list", "collapseHardware");
 
+    let currentHardwareId = "";
     let orgData = "";
-    function allowHardwareEdit() {
-      orgData = $('#hardware-data').val();
+
+    $(".card .collapse")
+      .on("show.bs.collapse", selectHardware)
+      .on("hide.bs.collapse", deselectHardware);
+
+    function startState() {
+      $('#hardware-data').prop('readonly', true);
+      $('#edit-hardware').css("display", "none");
+      $('#update-hardware').css("display", "none");
+      $('#cancel-edit').css("display", "none");
+      $('#delete-hardware').css("display", "none");
+    }
+
+    function readState() {
+      $('#hardware-data').prop('readonly', true);
+      $('#edit-hardware').css("display", "inline");;
+      $('#update-hardware').css("display", "none");
+      $('#cancel-edit').css("display", "none");
+      $('#delete-hardware').css("display", "inline");
+    }
+
+    function editState() {
       $('#hardware-data').prop('readonly', false);
+      $('#edit-hardware').css("display", "none");
       $('#update-hardware').css("display", "inline");
       $('#cancel-edit').css("display", "inline");
-      $('#edit-hardware').css("display", "none");
+      $('#delete-hardware').css("display", "inline");
+    }
+
+    function allowHardwareEdit() {
+      orgData = $('#hardware-data').val();
+      editState();
     }
 
     function cancelEdit() {
       $('#hardware-data').val(orgData);
-      $('#hardware-data').prop('readonly', true);
-      $('#edit-hardware').css("display", "inline");
-      $('#update-hardware').css("display", "none");
-      $('#cancel-edit').css("display", "none");
+      readState();
     }
 
     function updateHardware() {
@@ -142,19 +140,73 @@
       $.ajax({
         'url' : '/hardware/update',
         'type' : 'POST',
-        'data' : JSON.stringify({ id: selectedHardwareID, data: newData}),
+        'data' : JSON.stringify({ id: currentHardwareId, data: newData}),
         'success' : function(data) { 
           displayAlert("", data, "success");
-          $('#edit-hardware').css("display", "inline");
-          $('#update-hardware').css("display", "none");
-          $('#cancel-edit').css("display", "none");
+          // TODO: Update list card data with new variables data!
+          readState();
         },
         'error' : function(jqXHR) {
           if (jqXHR.status == 400 || jqXHR.status == 404) {
             displayAlert(jqXHR.status, jqXHR.responseText, "danger");
           } else {
-            displayAlert(jqXHR.status, "Something went wrong! Please report this to https://github.com/gauravgahlot/tink-wizard/issues", "danger");                   
+            displayAlert(jqXHR.status, "Something went wrong! Please report this to https://github.com/gauravgahlot/tink-wizard/issues", "danger");
           }
+        }
+      });
+    }
+
+    function selectHardware(event) {
+      var id=$(event.delegateTarget).data("id");
+      $.ajax({
+        'url' : '/hardware',
+        'type' : 'POST',
+        'data' : JSON.stringify({ id: id}),
+        'success' : function(data) {
+          currentHardwareId = id;
+          document.getElementById("hardware-data").value = JSON.stringify(data, undefined, 4);
+          readState();
+        },
+        'error' : function(jqXHR) {
+          if (jqXHR.status == 400 || jqXHR.status == 404) {
+            displayAlert(jqXHR.status, jqXHR.responseText, "danger");
+          } else {
+            displayAlert(jqXHR.status, "Something went wrong! Please report this to https://github.com/tinkerbell/portal/issues", "danger");
+          }
+          currentHardwareId = "";
+          document.getElementById("hardware-data").value = "";
+          startState();
+        }
+      });
+    }
+
+    function deselectHardware(event) {
+      currentHardwareId = "";
+      document.getElementById("hardware-data").value = "";
+      startState();
+    }
+
+    function deleteHardware() {
+      $.ajax({
+        'url' : '/hardware/delete',
+        'type' : 'POST',
+        'data' : JSON.stringify({ id: currentHardwareId}),
+        'success' : function(data) {
+          displayAlert("", data, "success");
+          $('#card-'+currentHardwareId).remove();
+          currentHardwareId = "";
+          document.getElementById("hardware-data").value = "";
+          startState();
+        },
+        'error' : function(jqXHR) {
+          if (jqXHR.status == 400 || jqXHR.status == 404) {
+            displayAlert(jqXHR.status, jqXHR.responseText, "danger");
+          } else {
+            displayAlert(jqXHR.status, "Something went wrong! Please report this to https://github.com/tinkerbell/portal/issues", "danger");
+          }
+          currentHardwareId = "";
+          document.getElementById("hardware-data").value = "";
+          startState();
         }
       });
     }
